@@ -6,7 +6,7 @@ pipeline {
     agent { label 'build-agent' }
 
     parameters {
-        string(name: 'BRANCH', defaultValue: 'master', description: 'Branch to build')
+        string(name: 'APP_VERSION', defaultValue: 'v1', description: 'App version to build and deploy')
         choice(name: 'ENV', choices: ['dev','staging','prod'], description: 'Target environment')
     }
 
@@ -94,12 +94,17 @@ stage('SonarQube Analysis') {
 
 
         stage('Deploy with Helm') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
-                    sh """
-                        helm upgrade --install ${HELM_RELEASE} ./helm-chart \
-                        --namespace ${K8S_NAMESPACE} \
-                        --set image.tag=${params.APP_VERSION}
+    steps {
+        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
+            sh """
+                helm upgrade --install userapp-release ./helm-chart \
+                  --namespace dev \
+                  --set image.tag=${params.APP_VERSION}
+            """
+        }
+    }
+}
+
                     """
                 }
             }
