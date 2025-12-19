@@ -18,10 +18,12 @@ pipeline {
     }
 
     stages {
+
         stage('Generate Tag') {
             steps {
                 script {
                     buildTag = generateTag()
+                    echo "Generated build tag: ${buildTag}"
                 }
             }
         }
@@ -44,9 +46,9 @@ pipeline {
                     withSonarQubeEnv('sonarkube-swathi') {
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
-                              -Dsonar.projectKey=sampleapp \
+                              -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} \
                               -Dsonar.sources=. \
-                              -Dsonar.host.url=http://20.75.196.235:9000 \
+                              -Dsonar.host.url=${env.SONAR_HOST_URL} \
                               -Dsonar.login=$SONAR_AUTH_TOKEN
                         """
                     }
@@ -82,36 +84,37 @@ pipeline {
                 }
             }
         }
+
         stage('Azure Login & AKS Setup') {
-    steps {
-        withCredentials([
-            string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
-            string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
-            string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
-        ]) {
-            sh """
-                az logout || true
-                az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
-                az aks get-credentials --resource-group rg-dev-flux --name aks-dev-flux-cluster --overwrite-existing
-                kubectl get pods -n default
-            """
+            steps {
+                withCredentials([
+                    string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+                    string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
+                    string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
+                ]) {
+                    sh """
+                        az logout || true
+                        az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+                        az aks get-credentials --resource-group rg-dev-flux --name aks-dev-flux-cluster --overwrite-existing
+                        kubectl get nodes
+                    """
+                }
+            }
         }
-    }
-}
 
-stage('Deploy with Helm') {
-    steps {
-        sh """
-            echo "Deploying Helm chart to AKS..."
-            helm upgrade --install userapp-release ./helm-chart \
-                --namespace ${params.ENV} \
-                --set image.tag=${params.APP_VERSION} \
-                --create-namespace
-        """
-    }
-}
+        stage('Deploy with Helm') {
+            steps {
+                sh """
+                    echo "Deploying Helm chart to AKS..."
+                    set -e
+                    helm upgrade --install ${env.HELM_RELEASE} ./helm-chart \
+                        --namespace ${params.ENV} \
+                        --set image.tag=${params.APP_VERSION} \
+                        --create-namespace
+                    kubectl rollout status deployment/${env.HELM_RELEASE} -n ${params.ENV}
+                """
+            }
+        }
 
-}
-
-    }
+    } // stages
 }
