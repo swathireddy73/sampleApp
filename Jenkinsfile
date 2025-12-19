@@ -39,20 +39,21 @@ pipeline {
         }
     }
 }
- 
-            stage('SonarQube Analysis') {
-            steps {
-                withCredentials([string(credentialsId: 'bf141771-104d-4b25-9a92-bff3c583acea', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh """
-                        sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN}
-                    """
-                }
-            }
+ stage('SonarQube Analysis') {
+    steps {
+        withCredentials([string(credentialsId: 'bf141771-104d-4b25-9a92-bff3c583acea', variable: 'SONAR_AUTH_TOKEN')]) {
+            sh """
+            docker run --rm \
+                -v $WORKSPACE:/usr/src \
+                sonarsource/sonar-scanner-cli \
+                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                -Dsonar.sources=. \
+                -Dsonar.host.url=${SONAR_HOST_URL} \
+                -Dsonar.login=${SONAR_AUTH_TOKEN}
+            """
         }
+    }
+}
 
         stage('Quality Gate') {
             steps {
