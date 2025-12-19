@@ -1,0 +1,44 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    exclude:
+      - azure-pipelines.yml
+      - azure-pipelines2.yml
+
+variables:
+- template: templates/variables/dotnet-variables.yaml
+
+pr:
+  branches:
+    include:
+      - master
+
+pool:
+  name: itc-ec2-k8s
+
+stages:
+- stage: BuildStage
+  displayName: "Restore, Build, and Publish .NET Core App"
+  jobs:
+    - job: Restore
+      steps:
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: 'restore'
+            projects: '**/*.csproj'
+
+    - job: Build
+      dependsOn: Restore
+      steps:
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: 'build'
+            projects: '**/*.csproj'
+            arguments: '--configuration Release'
+
+    - job: Publish
+      steps:
+       - template: templates/step/stage-dotnet-build.yaml
+

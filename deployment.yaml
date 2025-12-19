@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sampleapp-deployment  
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sampleapp
+  template:
+    metadata:
+      labels:
+        app: sampleapp
+    spec:
+      containers:
+      - name: sampleapp
+        image: dockeritc778/sampleapp:IMAGE_TAG
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+        env:
+            - name: ASPNETCORE_URLS
+              value: http://0.0.0.0:5000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sampleapp-service
+spec:
+  selector:
+    app: sampleapp
+  ports:
+    - protocol: TCP
+      port: 5000              
+      targetPort: 5000      
+  type: LoadBalancer

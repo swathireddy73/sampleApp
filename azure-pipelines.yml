@@ -1,0 +1,95 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - azure-pipelines.yml
+
+pool:
+  name: itc-ec2-k8s
+
+
+variables:
+  - group: vargroup
+
+
+stages:
+  - stage: echo_hello_world
+    jobs:
+      - job: echo_hello_world
+        steps:
+        - checkout: self  
+        - task: Bash@3
+          inputs:
+            targetType: 'inline'
+            script: echo Hello, world!
+
+  - stage: docker_build
+    jobs:
+      - job: docker_build
+        steps:
+        - checkout: self 
+        - task: Bash@3
+          inputs:
+            targetType: 'inline'
+            script: |
+               echo $(DOCKER-PASSWORD) | docker login -u $(DOCKER-USERNAME) --password-stdin
+               docker build -t sampleapp:$(Build.BuildNumber) .
+               docker tag sampleapp:$(Build.BuildNumber) $(DOCKER-USERNAME)/sampleapp:$(Build.BuildNumber) 
+               docker push $(DOCKER-USERNAME)/sampleapp:$(Build.BuildNumber) 
+               
+  - stage: az_login
+    jobs:
+      - job: az_login
+        steps:
+          - checkout: none 
+          - script: |
+              az login --service-principal -u $AZURE_APP_ID -p $AZURE_PASSWORD --tenant $AZURE_TENANT 
+
+  - stage: aks_login
+    jobs:
+      - job: aks_login
+        steps:
+          - checkout: none 
+          - script: |
+              az aks get-credentials --resource-group datascience --name mlops_kc --overwrite-existing 
+
+  # - stage: deployment
+  #   jobs:
+  #     - job: deploy_to_aks
+  #       steps:
+  #         - checkout: self 
+  #         - script: |
+  #             git clone git@github.com:gititc778/helm.git
+  #             cd ./helm/sampleapp
+  #             helm upgrade --install sampleapp . --set image.tag=$(Build.BuildNumber)
+
+  - stage: deployment
+    displayName: Deploy to AKS
+    jobs:
+      - deployment: deploy_to_aks
+        displayName: Deploy to AKS
+        environment: aks-dev 
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - script: |
+                    git clone git@github.com:gititc778/helm.git
+                    cd ./helm/sampleapp
+                    helm upgrade --install sampleapp . --set image.tag=$(Build.BuildNumber)
+
+  - stage: greetings
+    dependsOn: 
+     - echo_hello_world
+    condition: succeeded()
+    jobs:
+      - job: greetings
+        steps:
+        - checkout: none 
+        - task: Bash@3
+          inputs:
+            targetType: 'inline'
+            script: echo greetings

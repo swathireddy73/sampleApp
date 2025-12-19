@@ -1,0 +1,9 @@
+      steps:
+        - task: DotNetCoreCLI@2
+          inputs:
+            command: 'publish'
+            projects: '**/*.csproj'
+            arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+
+        - publish: $(Build.ArtifactStagingDirectory)
+          artifact: drop

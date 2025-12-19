@@ -1,0 +1,134 @@
+@Library('mySharedLibrary') _
+
+def buildTag = ''
+
+
+
+pipeline {
+    agent { label 'build-agent' }
+
+    parameters {
+        string(name: 'BRANCH', defaultValue: 'master')
+        booleanParam(name: 'DEPLOY', defaultValue: true)
+    }
+
+    environment {
+        ENV = 'prod'  
+        KUBE_CONTEXT = 'mlops_kc'
+        SONAR_HOST_URL = 'http://85.210.143.210:9000/'
+        SONAR_PROJECT_KEY = 'sampleApp'
+
+        
+    }
+
+    stages {
+        stage('Generate Tag') {
+            steps {
+                script {
+                    buildTag = generateTag()
+                }
+            }
+        }
+
+
+        stage('Checkout Code') {
+            steps {
+                git url: 'https://github.com/gititc778/sampleApp.git', branch: "${params.BRANCH}"
+            }
+        }
+
+        stage('SonarQube Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            dotnet-sonarscanner begin /k:"${SONAR_PROJECT_KEY}" /d:sonar.host.url=${SONAR_HOST_URL}
+                            dotnet build
+                            dotnet-sonarscanner end 
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    buildDocker(buildTag)
+                }
+            }
+        }
+
+        stage('Push to Docker Registry') {
+            steps {
+                script {
+                    pushDocker(buildTag)
+                }
+            }
+        }
+
+
+        stage('Login to Azure') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'AZURE_APP_ID', variable: 'AZURE_APP_ID'),
+                    string(credentialsId: 'AZURE_PASSWORD', variable: 'AZURE_PASSWORD'),
+                    string(credentialsId: 'AZURE_TENANT', variable: 'AZURE_TENANT')
+                ]) {
+                    sh """
+                    az login --service-principal \
+                        -u $AZURE_APP_ID \
+                        -p $AZURE_PASSWORD \
+                        --tenant $AZURE_TENANT
+                    """
+                }
+            }
+        }
+        
+        stage('Get AKS Credentials') {
+            steps {
+                sh '''
+                az aks get-credentials \
+                    --resource-group datascience \
+                    --name mlops_kc \
+                    --overwrite-existing
+                kubectl get namespace
+                '''
+            }
+        }
+
+
+        stage('Switch Kubernetes Context') {
+
+            steps {
+              sh '''
+                kubectl config use-context $KUBE_CONTEXT                
+              '''
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            when {
+                expression { params.DEPLOY }
+            }
+            steps {
+                script {                    
+
+                dir('helm-charts') {
+                git url: 'https://github.com/gititc778/helm.git', branch: 'master'
+                }
+                    deployAKS(buildTag)
+                }
+            }
+        }
+    }
+}
+
