@@ -44,10 +44,10 @@ pipeline {
                     withSonarQubeEnv('sonarkube-swathi') {
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
-                              -Dsonar.projectKey=sampleapp \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=${SONAR_HOST_URL} \
-                              -Dsonar.login=$SONAR_AUTH_TOKEN
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=${SONAR_HOST_URL} \
+                                -Dsonar.login=$SONAR_AUTH_TOKEN
                         """
                     }
                 }
@@ -85,14 +85,14 @@ pipeline {
 
         stage('Azure Login & AKS Setup') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'aks-login',
-                    usernameVariable: 'AZURE_CLIENT_ID',
-                    passwordVariable: 'AZURE_CLIENT_SECRET'
-                )]) {
+                withCredentials([
+                    string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+                    string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
+                    string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
+                ]) {
                     sh """
                         az logout || true
-                        az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant 2b32b1fa-7899-482e-a6de-be99c0ff5516
+                        az login --service-principal -u "\$AZURE_CLIENT_ID" -p "\$AZURE_CLIENT_SECRET" --tenant "\$AZURE_TENANT_ID"
                         az aks get-credentials --resource-group rg-dev-flux --name aks-dev-flux-cluster --overwrite-existing
                         kubectl get nodes
                     """
@@ -101,22 +101,25 @@ pipeline {
         }
 
         stage('Create Helm Chart') {
-    steps {
-        script {
-            if (!fileExists('helm-chart/Chart.yaml')) {
-                sh 'helm create helm-chart'
+            steps {
+                script {
+                    if (!fileExists('helm-chart/Chart.yaml')) {
+                        sh 'helm create helm-chart'
+                    }
+                }
             }
         }
-    }
-}
 
-stage('Deploy with Helm') {
-    steps {
-        sh """
-            helm upgrade --install userapp-release ./helm-chart \
-                --namespace ${params.ENV} \
-                --set image.tag=${params.APP_VERSION} \
-                --create-namespace
-        """
+        stage('Deploy with Helm') {
+            steps {
+                sh """
+                    echo "Deploying Helm chart to AKS..."
+                    helm upgrade --install ${HELM_RELEASE} ./helm-chart \
+                        --namespace ${params.ENV} \
+                        --set image.tag=${params.APP_VERSION} \
+                        --create-namespace
+                """
+            }
+        }
     }
 }
