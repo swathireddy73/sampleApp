@@ -82,20 +82,35 @@ pipeline {
                 }
             }
         }
-stage('Deploy with Helm') {
+        stage('Azure Login & AKS Setup') {
     steps {
-        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
+        withCredentials([
+            string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+            string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
+            string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
+        ]) {
             sh """
-                echo "Testing Kubernetes connection..."
-                kubectl get nodes
-                
-                echo "Deploying Helm chart..."
-                helm upgrade --install ${HELM_RELEASE} ./helm-chart \
-                  --namespace ${K8S_NAMESPACE} \
-                  --set image.tag=${params.APP_VERSION}
+                az logout || true
+                az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+                az aks get-credentials --resource-group rg-dev-flux --name aks-dev-flux-cluster --overwrite-existing
+                kubectl get pods -n default
             """
         }
     }
+}
+
+stage('Deploy with Helm') {
+    steps {
+        sh """
+            echo "Deploying Helm chart to AKS..."
+            helm upgrade --install userapp-release ./helm-chart \
+                --namespace ${params.ENV} \
+                --set image.tag=${params.APP_VERSION} \
+                --create-namespace
+        """
+    }
+}
+
 }
 
     }
