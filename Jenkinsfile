@@ -77,7 +77,6 @@ pipeline {
                 )]) {
                     sh """
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker tag swathireddy73/sampleapp:${params.APP_VERSION} swathireddy73/sampleapp:${params.APP_VERSION}
                         docker push swathireddy73/sampleapp:${params.APP_VERSION}
                     """
                 }
@@ -85,21 +84,16 @@ pipeline {
         }
 
         stage('Deploy with Helm') {
-    steps {
-        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
-            sh """
-                echo "Testing Kubernetes connection..."
-                kubectl get nodes
-                
-                echo "Deploying Helm chart..."
-                helm upgrade --install userapp-release ./helm-chart \
-                  --namespace ${params.ENV} \
-                  --set image.tag=${params.APP_VERSION}
-            """
-        }
-    }
-}
-
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
+                    sh """
+                        echo "Testing Kubernetes connection..."
+                        kubectl get nodes
+                        
+                        echo "Deploying Helm chart..."
+                        helm upgrade --install ${HELM_RELEASE} ./helm-chart \
+                          --namespace ${params.ENV} \
+                          --set image.tag=${params.APP_VERSION}
                     """
                 }
             }
