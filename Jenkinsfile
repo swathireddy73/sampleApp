@@ -26,9 +26,12 @@ pipeline {
             }
         }
 
-        stage('Checkout Code') {
+         stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/gititc778/sampleApp.git', branch: "${params.BRANCH ?: 'master'}"
+                // Add Git credentials here
+                git branch: "${params.BRANCH}",
+                    url: 'https://github.com/swathireddy73/sampleApp.git',
+                    credentialsId: '40a1d4f8-1be4-4f42-a7f1-a4da2eb75b93' 
             }
         }
 
