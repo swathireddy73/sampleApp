@@ -70,10 +70,11 @@ stage('SonarQube Analysis') {
         }
 
         stage('Build Docker Image') {
-            steps {
-                sh "docker build -t sampleapp:${params.APP_VERSION} ."
-            }
-        }
+    steps {
+        sh "docker build -t swathireddy73/sampleapp:${params.APP_VERSION} ."
+    }
+}
+
 
         stage('Push Docker Image') {
             steps {
