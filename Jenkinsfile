@@ -77,20 +77,21 @@ stage('SonarQube Analysis') {
 
 
         stage('Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'b13e918c-c5ee-412e-9dc2-75bf2eabeec3',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh """
-                        docker login -u $DOCKER_USER -p $DOCKER_PASS
-                        docker tag sampleapp:${params.APP_VERSION} mydockerhubuser/sampleapp:${params.APP_VERSION}
-                        docker push mydockerhubuser/sampleapp:${params.APP_VERSION}
-                    """
-                }
-            }
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'b13e918c-c5ee-412e-9dc2-75bf2eabeec3',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+        )]) {
+            sh """
+                echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                docker tag sampleapp:${params.APP_VERSION} swathireddy73/sampleapp:${params.APP_VERSION}
+                docker push swathireddy73/sampleapp:${params.APP_VERSION}
+            """
         }
+    }
+}
+
 
         stage('Deploy with Helm') {
             steps {
