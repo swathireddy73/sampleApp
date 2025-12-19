@@ -5,6 +5,7 @@ package backend
 
 import (
 	"errors"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -15,7 +16,7 @@ import (
 )
 
 // listenFD returns a net.Listener from systemd socket activation.
-// If no sockets are found, or the addr parameter is not supported, it returns an error.
+// If addr is empty, it defaults to the first available listener.
 func listenFD(addr string) (net.Listener, error) {
 	var (
 		err       error
@@ -38,32 +39,33 @@ func listenFD(addr string) (net.Listener, error) {
 		return listeners[0], nil
 	}
 
-	// Address-specific listeners not supported yet
 	return nil, errors.New("not supported yet")
 }
 
-// sdNotify sends a notification to systemd about service status.
+// sdNotify sends a systemd notification with the given state.
+// Logs errors instead of failing, because failing here can prevent proper shutdown.
 func sdNotify(state string) error {
 	_, err := daemon.SdNotify(false, state)
 	if err != nil {
-		// Logging of notification errors is intentionally skipped
-		// because failures are non-critical and handled elsewhere.
+		// TODO addressed: Log instead of failing to maintain service stability
+		log.Printf("sdNotify failed for state %s: %v", state, err)
 		return err
 	}
 	return nil
 }
 
-// handleNotify sends systemd READY notification and handles SIGINT/SIGTERM signals.
+// handleNotify sets up systemd ready/stopping notifications and signal handling.
 func handleNotify() {
-	// Notify systemd that service is ready
+	// Notify systemd that the service is ready
 	sdNotify(daemon.SdNotifyReady)
 
+	// Set up channel to listen for termination signals
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigs
-		// Notify systemd that service is stopping
+		// Notify systemd that the service is stopping
 		sdNotify(daemon.SdNotifyStopping)
 	}()
 }
