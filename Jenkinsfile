@@ -39,19 +39,20 @@ pipeline {
         }
     }
 }
- stage('SonarQube Analysis') {
+stage('SonarQube Analysis') {
     steps {
-         withSonarQubeEnv('sonarkube-swathipothula') {
-            sh """
-                        sonar-scanner \
-                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN
-            """
+        withSonarQubeEnv('sonarkube-swathipothula') {
+            sh '''
+                sonar-scanner \
+                  -Dsonar.projectKey=sampleapp \
+                  -Dsonar.sources=. \
+                  -Dsonar.host.url=http://20.75.196.235:9000 \
+                  -Dsonar.login=$SONAR_AUTH_TOKEN
+            '''
         }
     }
 }
+
 
         stage('Quality Gate') {
             steps {
