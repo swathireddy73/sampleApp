@@ -41,9 +41,12 @@ pipeline {
 }
 stage('SonarQube Analysis') {
     steps {
-        withSonarQubeEnv('sonarkube-swathi') {
+        // Use the SonarScanner installed in Jenkins
+        tool name: 'mysonarscanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+
+        withSonarQubeEnv('sonarkube-swathi') { // Must match your SonarQube installation name
             sh '''
-                sonar-scanner \
+                ${tool 'mysonarscanner'}/bin/sonar-scanner \
                   -Dsonar.projectKey=sampleapp \
                   -Dsonar.sources=. \
                   -Dsonar.host.url=http://20.75.196.235:9000 \
@@ -52,6 +55,7 @@ stage('SonarQube Analysis') {
         }
     }
 }
+
 
 
         stage('Quality Gate') {
