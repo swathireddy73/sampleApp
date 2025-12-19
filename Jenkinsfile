@@ -39,7 +39,7 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool name: 'mysonarscanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-                    withSonarQubeEnv('pranathi kandukuri') {
+                    withSonarQubeEnv('sonarkube-swathi') {
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
                                 -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
