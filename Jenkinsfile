@@ -82,21 +82,21 @@ pipeline {
                 }
             }
         }
-
-        stage('Deploy with Helm') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
-                    sh """
-                        echo "Testing Kubernetes connection..."
-                        kubectl get nodes
-                        
-                        echo "Deploying Helm chart..."
-                        helm upgrade --install ${HELM_RELEASE} ./helm-chart \
-                          --namespace ${params.ENV} \
-                          --set image.tag=${params.APP_VERSION}
-                    """
-                }
-            }
+stage('Deploy with Helm') {
+    steps {
+        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
+            sh """
+                echo "Testing Kubernetes connection..."
+                kubectl get nodes
+                
+                echo "Deploying Helm chart..."
+                helm upgrade --install ${HELM_RELEASE} ./helm-chart \
+                  --namespace ${K8S_NAMESPACE} \
+                  --set image.tag=${params.APP_VERSION}
+            """
         }
+    }
+}
+
     }
 }
