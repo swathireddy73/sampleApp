@@ -6,7 +6,7 @@ pipeline {
     agent { label 'build-agent' }
 
     parameters {
-        string(name: 'APP_VERSION', defaultValue: '1.0.0', description: 'App version for deployment')
+        string(name: 'BRANCH', defaultValue: 'master', description: 'Branch to build')
         choice(name: 'ENV', choices: ['dev','staging','prod'], description: 'Target environment')
     }
 
@@ -29,7 +29,8 @@ pipeline {
          stage('Checkout Code') {
             steps {
                 // Add Git credentials here
-                git branch: "${params.BRANCH}",
+                def branchToBuild = params.BRANCH ?: 'master'
+                 git branch: branchToBuild,
                     url: 'https://github.com/swathireddy73/sampleApp.git',
                     credentialsId: '40a1d4f8-1be4-4f42-a7f1-a4da2eb75b93' 
             }
