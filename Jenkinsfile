@@ -100,16 +100,23 @@ pipeline {
             }
         }
 
-        stage('Deploy with Helm') {
-            steps {
-                sh """
-                    echo "Deploying Helm chart to AKS..."
-                    helm upgrade --install ${HELM_RELEASE} ./helm-chart \
-                        --namespace ${params.ENV} \
-                        --set image.tag=${params.APP_VERSION} \
-                        --create-namespace
-                """
+        stage('Create Helm Chart') {
+    steps {
+        script {
+            if (!fileExists('helm-chart/Chart.yaml')) {
+                sh 'helm create helm-chart'
             }
         }
+    }
+}
+
+stage('Deploy with Helm') {
+    steps {
+        sh """
+            helm upgrade --install userapp-release ./helm-chart \
+                --namespace ${params.ENV} \
+                --set image.tag=${params.APP_VERSION} \
+                --create-namespace
+        """
     }
 }
