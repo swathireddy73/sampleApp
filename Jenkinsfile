@@ -13,9 +13,9 @@ pipeline {
 
     environment {
         HELM_RELEASE = 'userapp-release'
-        K8S_NAMESPACE = "${params.ENV}"
         SONAR_PROJECT_KEY = 'sampleapp'
         SONAR_HOST_URL = 'http://20.75.196.235:9000/'
+        SONAR_AUTH_TOKEN = credentials('sonar-token-id') // fixed missing token
     }
 
     stages {
@@ -91,6 +91,18 @@ pipeline {
                     """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed!"
         }
     }
 }
