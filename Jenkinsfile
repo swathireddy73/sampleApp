@@ -41,7 +41,7 @@ pipeline {
 }
 stage('SonarQube Analysis') {
     steps {
-        withSonarQubeEnv('sonarkube-swathipothula') {
+        withSonarQubeEnv('sonarkube-swathi') {
             sh '''
                 sonar-scanner \
                   -Dsonar.projectKey=sampleapp \
