@@ -18,7 +18,6 @@ pipeline {
     }
 
     stages {
-
         stage('Generate Tag') {
             steps {
                 script {
@@ -29,9 +28,12 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'master',
-                    url: 'https://github.com/swathireddy73/sampleApp.git',
-                    credentialsId: '40a1d4f8-1be4-4f42-a7f1-a4da2eb75b93'
+                script {
+                    def branchToBuild = params.BRANCH ?: 'master'
+                    git branch: branchToBuild,
+                        url: 'https://github.com/swathireddy73/sampleApp.git',
+                        credentialsId: '40a1d4f8-1be4-4f42-a7f1-a4da2eb75b93'
+                }
             }
         }
 
@@ -42,10 +44,10 @@ pipeline {
                     withSonarQubeEnv('sonarkube-swathi') {
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=${SONAR_HOST_URL} \
-                                -Dsonar.login=$SONAR_AUTH_TOKEN
+                              -Dsonar.projectKey=sampleapp \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=${SONAR_HOST_URL} \
+                              -Dsonar.login=$SONAR_AUTH_TOKEN
                         """
                     }
                 }
@@ -73,40 +75,40 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push swathireddy73/sampleapp:${APP_VERSION}
-                    '''
+                    sh """
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        docker push swathireddy73/sampleapp:${params.APP_VERSION}
+                    """
                 }
             }
         }
 
         stage('Azure Login & AKS Setup') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
-                    string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
-                    string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
-                ]) {
-                    sh '''
+                withCredentials([usernamePassword(
+                    credentialsId: 'aks-login',
+                    usernameVariable: 'AZURE_CLIENT_ID',
+                    passwordVariable: 'AZURE_CLIENT_SECRET'
+                )]) {
+                    sh """
                         az logout || true
-                        az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+                        az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant 2b32b1fa-7899-482e-a6de-be99c0ff5516
                         az aks get-credentials --resource-group rg-dev-flux --name aks-dev-flux-cluster --overwrite-existing
                         kubectl get nodes
-                    '''
+                    """
                 }
             }
         }
 
         stage('Deploy with Helm') {
             steps {
-                sh '''
+                sh """
                     echo "Deploying Helm chart to AKS..."
                     helm upgrade --install ${HELM_RELEASE} ./helm-chart \
-                        --namespace ${K8S_NAMESPACE} \
-                        --set image.tag=${APP_VERSION} \
+                        --namespace ${params.ENV} \
+                        --set image.tag=${params.APP_VERSION} \
                         --create-namespace
-                '''
+                """
             }
         }
     }
