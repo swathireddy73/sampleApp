@@ -27,16 +27,20 @@ pipeline {
         }
 
          stage('Checkout Code') {
-            steps {
-                // Add Git credentials here
-                def branchToBuild = params.BRANCH ?: 'master'
-                 git branch: branchToBuild,
-                    url: 'https://github.com/swathireddy73/sampleApp.git',
-                    credentialsId: '40a1d4f8-1be4-4f42-a7f1-a4da2eb75b93' 
-            }
-        }
+    steps {
+        script {
+            // Add Git credentials here
+            def branchToBuild = params.BRANCH ?: 'master'
 
-        stage('SonarQube Analysis') {
+            // Checkout the repo with credentials
+            git branch: branchToBuild,
+                url: 'https://github.com/swathireddy73/sampleApp.git',
+                credentialsId: '40a1d4f8-1be4-4f42-a7f1-a4da2eb75b93'  // replace with your Jenkins credential ID
+        }
+    }
+}
+ 
+            stage('SonarQube Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'bf141771-104d-4b25-9a92-bff3c583acea', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh """
